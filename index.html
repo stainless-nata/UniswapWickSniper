@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Uniswap Wick Sniper</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <link
+    type="text/css"
+    rel="stylesheet"
+    href="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.css"
+  />
+  <style>
+    body {
+      padding: 50px;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.js"></script>
+  <div id="app">
+    <div style="
+      padding:30px;
+      border:solid 1px;
+      border-color:rgb(218, 218, 218);
+      border-radius: 10px;
+    ">
+      <h5>Info</h5>
+      <div class="row">
+        <div class="col-sm-12 col-md-6 col-lg-4">
+          <div class="form-group">
+            <label for="usr">Your Address:</label>
+            <input type="text" class="form-control" placeholder="You should put Your address" v-model="walletAddr" id="usr">
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-4">
+          <div class="form-group">
+            <label for="pwd">Private Key:</label>
+            <input type="password" class="form-control" placeholder="You should put Private Key" v-model="privateKey" id="pwd">
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-4">
+          <div class="form-group">
+            <label for="pwd">Node URL:</label>
+            <input type="password" class="form-control" v-model="nodeURL" id="nodeURL">
+          </div>
+        </div>
+      </div>
+    </div>
+    <b-tabs class="mt-3">
+      <b-tab title="VWAP" active>
+        <div style="
+          padding:30px;
+          border:solid 1px;
+          border-color:rgb(218, 218, 218);
+          border-radius: 10px;
+          margin-top: 20px;
+          margin-bottom: 20px;
+        ">
+          <h5>Add Token Addresses</h5>
+          <div class="row">
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">Token Address</label>
+                <input type="text" class="form-control" placeholder="Enter token address here" v-model="tokenAddr" id="tokenAddr">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">Amounts(ETH or %)</label>
+                <input type="text" class="form-control" placeholder="Enter amounts for ETH" v-model="amount" id="amount">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">VWAP</label>
+                <input type="text" class="form-control" placeholder="Enter multiplier for bands" v-model="vwap" id="vwap">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Slippage:</label>
+                <input type="text" class="form-control" v-model="slippage" id="slippage">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Gas Price(Percent):</label>
+                <input type="text" class="form-control" v-model="gasPrice" id="gasPrice">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Gas Limit:</label>
+                <input type="text" class="form-control" v-model="gasLimit" id="gasLimit">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <button class="btn btn-primary" @click="addTokenAddress()">
+                <!-- <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: {{this.addStatus ? "none" : "block"}}"></span> -->
+                {{this.addStatus ? " Adding..." : " Add"}}
+              </button>
+              <button class="btn btn-primary" @click="deleteTokenAddress()">
+                Delete
+              </button>
+              <button class="btn btn-primary" @click="deleteAll()">
+                Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="row form-group">
+          <div class="col-sm-12 col-md-12 col-lg-12" style="display:flex; justify-content: center;">
+            <label class="form-check-inline" style="margin-right: 10px;">
+              <input class="form-check-input" type="radio" name="modeVwap" id="normalMode" value="normalMode" checked v-model="mode" @click="onModeVwap">
+              Normal
+            </label>
+            <label class="form-check-inline">
+              <input class="form-check-input" type="radio" name="modeVwap" id="buyMode" value="buyMode" v-model="mode" @click="onModeVwap">
+              Buy
+            </label>
+            <label class="form-check-inline">
+              <input class="form-check-input" type="radio" name="modeVwap" id="sellMode" value="sellMode" v-model="mode" @click="onModeVwap">
+              Sell
+            </label>
+          </div>
+        </div>
+        <div class="row form-group">
+          <div class="col-sm-12 col-md-12 col-lg-12" style="display:flex; justify-content: center;">
+            <button class="btn btn-success btn-lg" @click="setVwapBotStatus()">{{vwapBotStatus}}</button>
+          </div>
+        </div>
+        <div class="token-list">
+          <table class="table table-striped">
+            <thead>
+              <tr style="width:200px;">
+                <th>Token Address</th>
+                <th>Status(VWAP)</th>
+                <th>Amount(Current Price)</th>
+                <th>Transaction(Upper band, Lower band)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in fullData">
+                <td>{{item.address}}</td>
+                <td>{{item.status}}</td>
+                <td>{{item.amount}}</td>
+                <td><a v-bind:href="'https://etherscan.com/tx/' + item.transaction">{{item.transaction}}</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </b-tab>
+      <b-tab title="Limit">
+        <div style="
+          padding:30px;
+          border:solid 1px;
+          border-color:rgb(218, 218, 218);
+          border-radius: 10px;
+          margin-top: 20px;
+          margin-bottom: 20px;
+        ">
+          <h5>Token Settings</h5>
+          <div class="row">
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">Token Address</label>
+                <input type="text" class="form-control" placeholder="Enter token address here" v-model="tokenAddr" id="tokenAddr">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">Amounts(ETH or %)</label>
+                <input type="text" class="form-control" placeholder="Enter amounts for ETH" v-model="amount" id="amount">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="usr">Limit Price</label>
+                <input type="text" class="form-control" placeholder="Enter Limit Price" v-model="limitPrice" id="limitPrice">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Slippage:</label>
+                <input type="text" class="form-control" v-model="slippage" id="slippage">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Gas Price(Percent):</label>
+                <input type="text" class="form-control" v-model="gasPrice" id="gasPrice">
+              </div>
+            </div>
+            <div class="col-sm-12 col-md-6 col-lg-4">
+              <div class="form-group">
+                <label for="pwd">Gas Limit:</label>
+                <input type="text" class="form-control" v-model="gasLimit" id="gasLimit">
+              </div>
+            </div>
+          </div>
+          <div class="form-group form-check">
+            <div class="col-sm-12 col-md-12 col-lg-12" style="display:flex; justify-content: center;">
+              <label class="form-check-label" for="exampleCheck1">
+                <input type="checkbox" class="form-check-input" name="frontrun" id="frontrun" value="frontrun" v-model="frontrun" @click="onFrontrunCheck">
+                Front-run
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="row form-group">
+          <div class="col-sm-12 col-md-12 col-lg-12" style="display:flex; justify-content: center;">
+            <label class="form-check-inline">
+              <input class="form-check-input" type="radio" name="modeLimit" id="buyMode" value="buyMode" checked v-model="mode" @click="onModeLimit">
+              Buy
+            </label>
+            <label class="form-check-inline">
+              <input class="form-check-input" type="radio" name="modeLimit" id="sellMode" value="sellMode" v-model="mode" @click="onModeLimit">
+              Sell
+            </label>
+          </div>
+        </div>
+        <div class="row form-group">
+          <div class="col-sm-12 col-md-12 col-lg-12" style="display:flex; justify-content: center;">
+            <button class="btn btn-success btn-lg" @click="setLimitBotStatus()">{{limitBotStatus}}</button>
+          </div>
+        </div>
+      </b-tab>
+    </b-tabs>
+  </div>
+  <script>
+    // Set the initial setting for the bot to snipe the token.
+    var app = new Vue({
+      el: '#app',
+      data: {
+        wss: null,
+        vwapBotStatus     : 'Start Bot',
+        limitBotStatus    : 'Start Bot',
+        addStatus   : false,
+        walletAddr  : '',
+        privateKey  : '',
+        nodeURL     : 'http://148.251.52.175:8000',
+        // nodeURL      : 'https://polygon-mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+        gasPrice    : "150",
+        gasLimit    : 400000,
+        slippage    : 3,
+        tokenAddr   : '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        amount      : '0.1',
+        vwap        : '1',
+        fullData    : [],
+        price       : 0,
+        mode        : "normalMode",
+        limitPrice  : '1',
+        frontrun    : false,
+      },
+      methods: {
+        onFrontrunCheck() {
+          this.frontrun = !this.frontrun
+          console.log(this.frontrun)
+        },
+        onModeVwap() {
+          this.mode = document.querySelector('input[name="modeVwap"]:checked').value;
+          console.log(this.mode);
+        },
+        onModeLimit() {
+          this.mode = document.querySelector('input[name="modeLimit"]:checked').value;
+          console.log(this.mode);
+        },
+        deleteTokenAddress() {
+          if (this.tokenAddr !== "") {
+            let obj = {
+              id: "deleteTokenAddress",
+              tokenAddr: this.tokenAddr,
+            }
+            this.wss.send(JSON.stringify(obj));
+            alert(`${this.tokenAddr} deleted!`)
+          } else {
+            alert("Please fill form!")
+          }
+        },
+        deleteAll() {
+          let obj = {
+            id: "deleteAll",
+          }
+          this.wss.send(JSON.stringify(obj));
+          alert("All deleted!")
+        },
+        addTokenAddress() {
+          if (this.tokenAddr !== "" &&
+            this.amount !== "" &&
+            this.vwap !== "" &&
+            this.gasPrice !== "" &&
+            this.gasLimit !== "" &&
+            this.slippage !== ""
+          ) {
+            this.addStatus = true;
+
+            let obj = {
+              id: "addTokenAddress",
+              tokenAddr: this.tokenAddr,
+              amount: this.amount,
+              vwap: this.vwap,
+              slippage: this.slippage,
+              gasPrice: this.gasPrice,
+              gasLimit: this.gasLimit,
+            }
+
+            this.wss.send(JSON.stringify(obj));
+            
+            this.addStatus = false;
+            alert(`${this.tokenAddr} Added!`)
+          } else {
+            alert("Please fill form!")
+          }          
+        },
+        setVwapBotStatus() {
+          if (this.walletAddr !== "" &&
+            this.privateKey !== "" &&
+            this.nodeURL !== ""
+          ) {
+            var obj = {}
+            if (this.vwapBotStatus === "Start Bot") {
+              obj = { 
+                id: "startVwapBot",
+                botStatus: true,
+                mode: this.mode,
+                walletAddr: this.walletAddr, 
+                address: this.privateKey,
+                nodeURL: this.nodeURL,
+              };
+              this.vwapBotStatus = "Stop Bot"
+            } else {
+              obj = {
+                id: "stopVwapBot",
+                botStatus: false,
+              };
+              this.vwapBotStatus = "Start Bot"
+            }
+            var str = JSON.stringify(obj);
+            this.wss.send(str);
+          } else {
+            alert("Please fill form!")
+          }
+        },
+        setLimitBotStatus() {
+          if(this.walletAddr !== "" &&
+            this.privateKey !== "" &&
+            this.nodeURL !== "" &&
+            this.tokenAddr !== "" &&
+            this.amount !== "" &&
+            this.limitPrice !== "" &&
+            this.slippage !== "" &&
+            this.gasLimit !== "" &&
+            this.mode
+          ) {
+            var obj = {}
+            if(this.limitBotStatus === "Start Bot") {
+              obj = {
+                id: "startLimitBot",
+                botStatus: true,
+                walletAddr: this.walletAddr, 
+                address: this.privateKey,
+                nodeURL: this.nodeURL,
+                mode: this.mode,
+                tokenAddress: this.tokenAddr,
+                amount: this.amount,
+                limitPrice: this.limitPrice,
+                slippage: this.slippage,
+                gasPrice: this.gasPrice,
+                gasLimit: this.gasLimit,
+                frontrun: this.frontrun,
+              }
+              this.limitBotStatus = "Stop Bot"
+            } else {
+              obj = {
+                id: "stopLimitBot",
+                botStatus: false,
+              };
+              this.limitBotStatus = "Start Bot"
+            }
+            console.log(obj)
+
+            var str = JSON.stringify(obj);
+            this.wss.send(str);
+          } else {
+            alert("Please fill form!")
+          }
+        }
+      },
+      mounted() {
+        if ("WebSocket" in window) {
+          var wss = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + "/connect/");
+          this.wss = wss;
+          wss.onopen = () => {
+            this.vwapBotStatus = "Start Bot"
+            this.limitBotStatus = "Start Bot"
+            wss.send("connectRequest")
+          };
+
+          wss.onmessage = (evt) => {
+            var msg = evt.data
+            var obj = JSON.parse(msg);
+            if(obj.type == "vwap") {
+              if (obj.botStatus !== undefined) {
+                if (obj.botStatus === true)
+                  this.vwapBotStatus = "Stop Bot"
+                else
+                  this.vwapBotStatus = "Start Bot"
+              } else if (obj.alert !== undefined) {
+                alert(obj.alert)
+                this.vwapBotStatus = "Start Bot"
+              } else {
+                this.fullData.push({
+                  address: obj.address,
+                  status: obj.status,
+                  amount: obj.amount,
+                  transaction: obj.transaction,
+                })
+              }
+            } else {
+              if(obj.botStatus === true)
+                this.limitBotStatus = "Stop Bot"
+              else
+                this.limitBotStatus = "Start Bot"
+            }
+          };
+          wss.onclose = () => {
+            console.log('winsocket closed')
+            this.wss = null;
+            this.vwapBotStatus = "Start Bot"
+            this.limitBotStatus = "Start Bot"
+          };
+        } else {
+          console.log("WebSocket NOT supported by your Browser!");
+        }
+      }
+    })
+
+
+  </script>
+  <style>
+    .short-input {
+      width: 10%;
+      margin: 7px;
+    }
+  </style>
+</body>
+
+</html>
